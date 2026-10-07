@@ -3391,8 +3391,17 @@ int input_read_parameters_species(struct file_content * pfc,
       class_read_double("Omega_EDE",pba->Omega_EDE);
       class_read_double("cs2_fld",pba->cs2_fld);
     }
+
   }
 
+  /** BEGIN @felixmorland: { */
+  /** Elastic DM-DE coupling */
+  class_read_double("alpha_dmde",pba->alpha_dmde);
+  class_test(pba->alpha_dmde < 0.,
+            errmsg,
+            "alpha_dmde must be >= 0, you entered %g",pba->alpha_dmde);
+  /** } END @felixmorland */
+  
   /** 8.b) If Omega scalar field (SCF) is different from 0 */
   if (pba->Omega0_scf != 0.){
 
@@ -6052,6 +6061,8 @@ int input_default_params(struct background *pba,
   pba->phi_prime_ini_scf = 1;          //     factors of the radiation attractor values
   /** 9.b.3) Tuning parameter */
   pba->scf_tuning_index = 0;
+  /** 9.c) DM-DE elastic coupling*/
+  pba->alpha_dmde = 0.; /* @felixmorland: no DM-DE coupling by default */
 
   /**
    * Deafult to input_read_parameters_heating

@@ -3391,6 +3391,13 @@ int perturbations_prepare_k_output(struct background * pba,
       class_store_columntitle(ppt->vector_titles,"a",_TRUE_);
       class_store_columntitle(ppt->vector_titles,"V (vec. mod.)",_TRUE_);
       class_store_columntitle(ppt->vector_titles,"theta_b",_TRUE_);
+      /** BEGIN @felixmorland: { */
+      class_store_columntitle(ppt->vector_titles,"theta_cdm",pba->has_cdm);
+      class_store_columntitle(ppt->vector_titles,"theta_fld",pba->has_fld);
+      class_store_columntitle(ppt->vector_titles,"Pi_fld",pba->has_fld && (pba->alpha_dmde > 0.));
+      class_store_columntitle(ppt->vector_titles,"Gamma_over_k",pba->has_fld && (pba->alpha_dmde > 0.));
+      class_store_columntitle(ppt->vector_titles,"Gamma_over_H",pba->has_fld && (pba->alpha_dmde > 0.));
+      /** } END @felixmorland */
       switch (ppt->hierarchy) {
       case optimal:
         class_store_columntitle(ppt->vector_titles,"F_ur_0",_TRUE_);
@@ -4172,6 +4179,17 @@ int perturbations_vector_init(
 
     /* Vector baryon velocity: v_b^{(1)}. */
     class_define_index(ppv->index_pt_theta_b,_TRUE_,index_pt,1);
+
+    /** BEGIN @felixmorland: { */
+    /* dark matter vector velocity: v_{cdm}^{(1)} */
+    class_define_index(ppv->index_pt_theta_cdm, pba->has_cdm, index_pt, 1);
+
+    /* dark energy fluid vector velocity: v_{de}^{(1)} */
+    class_define_index(ppv->index_pt_theta_fld, pba->has_fld, index_pt, 1);
+
+    /* dark energy anisotropic stress: Pi_{de}^{(1)} */
+    class_define_index(ppv->index_pt_Pi_fld, pba->has_fld && (pba->alpha_dmde > 0.), index_pt, 1);
+    /** } END */
 
     /* eventually reject inconsistent values of the number of mutipoles in photon temperature hierarchy and polarization*/
     class_test(ppr->l_max_g_vec < 4,
@@ -5512,6 +5530,21 @@ int perturbations_vector_init(
         }
       }
 
+      /** BEGIN @felixmorland: { */
+      /* CDM and DE unaffected by TCA */
+      if (pba->has_cdm == _TRUE_)
+        ppv->y[ppv->index_pt_theta_cdm] =
+          ppw->pv->y[ppw->pv->index_pt_theta_cdm];
+
+      if (pba->has_fld == _TRUE_)
+        ppv->y[ppv->index_pt_theta_fld] =
+          ppw->pv->y[ppw->pv->index_pt_theta_fld];
+        
+        if (pba->alpha_dmde > 0.)
+          ppv->y[ppv->index_pt_Pi_fld] =
+            ppw->pv->y[ppw->pv->index_pt_Pi_fld];
+      /** } END */
+
       /* -- case of switching off tight coupling
          approximation. Provide correct initial conditions to new set
          of variables */
@@ -6413,12 +6446,30 @@ int perturbations_initial_conditions(struct precision * ppr,
     ppw->pv->y[ppw->pv->index_pt_V] = V_init;
     ppw->pv->y[ppw->pv->index_pt_theta_b] = theta_b;
 
+    /** BEGIN @felixmorland: { */
+    /* zero velocity in synchronous gauge */
+    if (pba->has_cdm == _TRUE_)
+      ppw->pv->y[ppw->pv->index_pt_theta_cdm] = 0.;
+    if (pba->has_fld == _TRUE_) {
+      ppw->pv->y[ppw->pv->index_pt_theta_fld] = 0.;
+      if (pba->alpha_dmde > 0.)
+        ppw->pv->y[ppw->pv->index_pt_Pi_fld] = 0.;
+    }
+    /** } END @felixmorland */
+
     /* Gauge transformations */
 
     /* From synchronous to Newtonian gauge, add V to the velocities */
     if (ppt->gauge == newtonian) {
       l1_ur += V_init;
       ppw->pv->y[ppw->pv->index_pt_theta_b] += V_init;
+
+      /** BEGIN @felixmorland: { */
+      if (pba->has_cdm == _TRUE_)
+        ppw->pv->y[ppw->pv->index_pt_theta_cdm] += V_init;
+      if (pba->has_fld == _TRUE_)
+        ppw->pv->y[ppw->pv->index_pt_theta_fld] += V_init;
+      /** } END @felixmorland */
     }
 
     /* Assign IC to ur and ncdm variables */
@@ -8014,6 +8065,18 @@ int perturbations_total_stress_energy(
            approximation vector_source_pi = 0 during the TCA. */
       }
     }
+
+    /** BEGIN @felixmorland: { */
+    if (pba->has_fld == _TRUE_ && pba->alpha_dmde > 0.) {
+
+      double w_fld_vs, dw_da_vs, integral_fld_vs;
+      class_call(background_w_fld(pba, a, &w_fld_vs, &dw_da_vs, &integral_fld_vs),
+                pba->error_message, ppt->error_message);
+
+      ppw->vector_source_pi +=
+        a2 * w_fld_vs * ppw->pvecback[pba->index_bg_rho_fld] * y[ppw->pv->index_pt_Pi_fld];
+    }
+    /** } END @felixmorland */
 
     /* Contribution of neutrino or ultra relativistic particles. */
     if (ppt->evolve_vector_ur == _TRUE_){
@@ -9747,6 +9810,27 @@ int perturbations_print_variables(double tau,
         break;
       }
     }
+    /** BEGIN @felixmorland: { */
+    double theta_cdm_out = 0., theta_fld_out = 0.;
+    double Pi_fld_out = 0., Gamma_over_k_out = 0., Gamma_over_H_out = 0.;
+
+    if (pba->has_cdm == _TRUE_)
+      theta_cdm_out = y[ppw->pv->index_pt_theta_cdm];
+
+    if (pba->has_fld == _TRUE_) {
+      theta_fld_out = y[ppw->pv->index_pt_theta_fld];
+      if (pba->alpha_dmde > 0.) {
+        double w_o, dw_da_o, integral_o;
+        class_call(background_w_fld(pba, pvecback[pba->index_bg_a], &w_o, &dw_da_o, &integral_o),
+                  pba->error_message, ppt->error_message);
+        double Gamma_o = pvecback[pba->index_bg_a] * pba->alpha_dmde
+                      / ((1.+w_o) * pvecback[pba->index_bg_rho_fld]);
+        Pi_fld_out       = y[ppw->pv->index_pt_Pi_fld];
+        Gamma_over_k_out = Gamma_o / k;
+        Gamma_over_H_out = Gamma_o / (pvecback[pba->index_bg_a] * pvecback[pba->index_bg_H]);
+      }
+    }
+    /** } END @felixmorland */
 
     /** - --> Handle (re-)allocation */
     if (ppt->vector_perturbations_data[ppw->index_ikout] == NULL){
@@ -9768,6 +9852,15 @@ int perturbations_print_variables(double tau,
     class_store_double(dataptr, pvecback[pba->index_bg_a], _TRUE_, storeidx);
     class_store_double(dataptr, y[ppw->pv->index_pt_V], _TRUE_, storeidx);
     class_store_double(dataptr, theta_b, _TRUE_, storeidx);
+
+    /** BEGIN @felixmorland: { */
+    class_store_double(dataptr, theta_cdm_out, pba->has_cdm, storeidx);
+    class_store_double(dataptr, theta_fld_out, pba->has_fld, storeidx);
+    class_store_double(dataptr, Pi_fld_out,       pba->has_fld && (pba->alpha_dmde > 0.), storeidx);
+    class_store_double(dataptr, Gamma_over_k_out, pba->has_fld && (pba->alpha_dmde > 0.), storeidx);
+    class_store_double(dataptr, Gamma_over_H_out, pba->has_fld && (pba->alpha_dmde > 0.), storeidx);
+    /** } END @felixmorland */
+
     switch (ppt->hierarchy) {
     case optimal:
       class_store_double(dataptr, l0_ur, _TRUE_, storeidx);
@@ -11090,6 +11183,56 @@ int perturbations_derivs(double tau,
     zerokappam2 = _SQRT3_*k*ssqrt3;
     cb2 = pvecthermo[pth->index_th_cb2];
 
+    /** BEGIN @felixmorland: { */
+    /* DM-DE coupling const*/
+    double alpha_coupling = pba->alpha_dmde;
+
+    /* - --> dark matter vector velocity */
+    if (pba->has_cdm == _TRUE_) {
+      double rho_cdm_vec     = pvecback[pba->index_bg_rho_cdm];
+      double theta_fld_for_coupling = (pba->has_fld == _TRUE_) ? y[pv->index_pt_theta_fld] : 0.;
+
+      if (ppt->gauge == newtonian) {
+
+        dy[pv->index_pt_theta_cdm] =
+            pvecmetric[ppw->index_mt_V_prime]
+          - a_prime_over_a * (y[pv->index_pt_theta_cdm] - y[ppw->pv->index_pt_V])
+          - a * alpha_coupling / rho_cdm_vec
+            * (y[pv->index_pt_theta_cdm] - theta_fld_for_coupling);
+
+      }
+    }
+
+    /* - --> dark energy fluid vector velocity and anisotropic stress */
+    if (pba->has_fld == _TRUE_) {
+      double rho_fld_vec = pvecback[pba->index_bg_rho_fld];
+      double theta_cdm_for_coupling = (pba->has_cdm == _TRUE_) ? y[pv->index_pt_theta_cdm] : 0.;
+      double w_fld_v, dw_da_v, integral_fld_v;
+      class_call(background_w_fld(pba, a, &w_fld_v, &dw_da_v, &integral_fld_v),
+                pba->error_message, ppt->error_message);
+      double w_prime_fld_v = dw_da_v * a_prime_over_a * a;
+      double uV_coef = a_prime_over_a * (1.-3.*w_fld_v) + w_prime_fld_v / (1.+w_fld_v);
+      double coup_de = a * alpha_coupling / (rho_fld_vec * (1.+w_fld_v));
+      double Pi_fld_v = 0., aniso_coef = 0.;
+
+      if (ppt->gauge == newtonian) {
+
+        if (alpha_coupling > 0.) {
+          double Pi_coef = 1.2 * (1.+w_fld_v) / w_fld_v * pba->cs2_fld * k;
+          aniso_coef = 0.5 * k * w_fld_v / (1.+w_fld_v) * ssqrt3*ssqrt3;
+          Pi_fld_v = y[pv->index_pt_Pi_fld];
+          dy[pv->index_pt_Pi_fld] = Pi_coef*y[pv->index_pt_theta_fld] - coup_de*Pi_fld_v;
+        }
+
+        dy[pv->index_pt_theta_fld] =
+            pvecmetric[ppw->index_mt_V_prime]
+          - uV_coef * (y[pv->index_pt_theta_fld] - y[pv->index_pt_V])
+          - aniso_coef * Pi_fld_v
+          - coup_de * (y[pv->index_pt_theta_fld] - theta_cdm_for_coupling);
+      }
+    }
+    /** } END @felixmorland */
+
     if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) {
       if (ppw->approx[ppw->index_ap_tca]==(int)tca_off) {
 
@@ -11337,6 +11480,7 @@ int perturbations_derivs(double tau,
           + pvecmetric[ppw->index_mt_V_prime]+(1.-3.*cb2)*a_prime_over_a*y[pv->index_pt_V];
       }
     }
+
 
     /* ur species */
     if (ppt->evolve_vector_ur == _TRUE_) {
