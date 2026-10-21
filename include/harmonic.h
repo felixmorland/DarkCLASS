@@ -52,6 +52,7 @@ struct harmonic {
   int has_ee; /**< do we want \f$ C_l^{EE}\f$? (E = E-polarization) */
   int has_te; /**< do we want \f$ C_l^{TE}\f$? */
   int has_bb; /**< do we want \f$ C_l^{BB}\f$? (B = B-polarization) */
+  int has_tb; /**< @felixmorland: do we want \f$ C_l^{TB}\f$? (B = B-polarization) */
   int has_pp; /**< do we want \f$ C_l^{\phi\phi}\f$? (\f$ \phi \f$ = CMB lensing potential) */
   int has_tp; /**< do we want \f$ C_l^{T\phi}\f$? */
   int has_ep; /**< do we want \f$ C_l^{E\phi}\f$? */
@@ -66,6 +67,7 @@ struct harmonic {
   int index_ct_ee; /**< index for type \f$ C_l^{EE} \f$*/
   int index_ct_te; /**< index for type \f$ C_l^{TE} \f$*/
   int index_ct_bb; /**< index for type \f$ C_l^{BB} \f$*/
+  int index_ct_tb; /**< @felixmorland: index for type \f$ C_l^{TB} \f$*/
   int index_ct_pp; /**< index for type \f$ C_l^{\phi\phi} \f$*/
   int index_ct_tp; /**< index for type \f$ C_l^{T\phi} \f$*/
   int index_ct_ep; /**< index for type \f$ C_l^{E\phi} \f$*/

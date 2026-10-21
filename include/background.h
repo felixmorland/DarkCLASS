@@ -124,7 +124,7 @@ struct background
   double varconst_transition_redshift; /**< redshift of transition between varied fundamental constants and normal fundamental constants in the 'varconst_instant' case*/
 
   double alpha_dmde; /**< @felixmorland: elastic DM-DE coupling parameter */
-
+  double beta_bde; /**< @felixmorland: elastic B-DE coupling parameter */
   //@}
 
 

@@ -785,6 +785,7 @@ cdef class Class:
             (self.hr.has_ee, self.hr.index_ct_ee, 'ee'),
             (self.hr.has_te, self.hr.index_ct_te, 'te'),
             (self.hr.has_bb, self.hr.index_ct_bb, 'bb'),
+            (self.hr.has_tb, self.hr.index_ct_tb, 'tb'),
             (self.hr.has_pp, self.hr.index_ct_pp, 'pp'),
             (self.hr.has_tp, self.hr.index_ct_tp, 'tp'),]
         spectra = []

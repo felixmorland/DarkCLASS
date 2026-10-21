@@ -563,6 +563,12 @@ int harmonic_indices(
       phr->has_dl = _FALSE_;
     }
 
+    /** BEGIN @felixmorland: { */
+    if ((ppt->has_vectors == _TRUE_) && (ppt->has_cl_cmb_temperature == _TRUE_) && (ppt->has_cl_cmb_polarization == _TRUE_)) {
+      phr->has_tb = _TRUE_; phr->index_ct_tb = index_ct; index_ct++;
+    } else { phr->has_tb = _FALSE_; }
+    /** } END @felixmorland */
+    
     phr->ct_size = index_ct;
 
     /* infer from input quantities the l_max for each mode and type,
@@ -634,6 +640,9 @@ int harmonic_indices(
       if (phr->has_ee == _TRUE_) phr->l_max_ct[ppt->index_md_vectors][phr->index_ct_ee] = ppt->l_vector_max;
       if (phr->has_te == _TRUE_) phr->l_max_ct[ppt->index_md_vectors][phr->index_ct_te] = ppt->l_vector_max;
       if (phr->has_bb == _TRUE_) phr->l_max_ct[ppt->index_md_vectors][phr->index_ct_bb] = ppt->l_vector_max;
+      /** BEGIN @felixmorland: { */
+      if (phr->has_tb == _TRUE_) phr->l_max_ct[ppt->index_md_vectors][phr->index_ct_tb] = ppt->l_vector_max;
+      /** } END @felixmorland */
     }
 
     if (ppt->has_tensors == _TRUE_) {
@@ -1110,6 +1119,14 @@ int harmonic_compute_cl(
         * transfer_ic1[ptr->index_tt_vector_b]
         * transfer_ic2[ptr->index_tt_vector_b]
         * factor;
+    /** BEGIN @felixmorland: { */
+    if (_vectors_ && (phr->has_tb == _TRUE_))
+      cl_integrand[index_q*cl_integrand_num_columns+1+phr->index_ct_tb] =
+       primordial_pk[index_ic1_ic2]
+        * 0.5*(transfer_ic1_temp * transfer_ic2[ptr->index_tt_vector_b]
+        + transfer_ic1[ptr->index_tt_vector_b] * transfer_ic2_temp)
+        * factor;
+    /** } END @felixmorland */
 
     if (_tensors_ && (phr->has_bb == _TRUE_))
       cl_integrand[index_q*cl_integrand_num_columns+1+phr->index_ct_bb]=
@@ -1287,7 +1304,11 @@ int harmonic_compute_cl(
         (_vectors_ && (phr->has_pd == _TRUE_) && (index_ct == phr->index_ct_pd)) ||
         (_vectors_ && (phr->has_ll == _TRUE_) && (index_ct == phr->index_ct_ll)) ||
         (_vectors_ && (phr->has_tl == _TRUE_) && (index_ct == phr->index_ct_tl)) ||
-        (_vectors_ && (phr->has_dl == _TRUE_) && (index_ct == phr->index_ct_dl))
+        (_vectors_ && (phr->has_dl == _TRUE_) && (index_ct == phr->index_ct_dl)) ||
+        /** BEGIN @felixmorland: { */
+        (_scalars_ && (phr->has_tb == _TRUE_) && (index_ct == phr->index_ct_tb)) ||
+        (_tensors_ && (phr->has_tb == _TRUE_) && (index_ct == phr->index_ct_tb))
+        /** } END @felixmorland */
 	) {
 
       phr->cl[index_md]

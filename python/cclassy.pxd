@@ -162,9 +162,9 @@ cdef extern from "class.h":
 
         int store_perturbations
         int k_output_values_num
-        double k_output_values[30]
+        double k_output_values[100]
         double k_max_for_pk
-        int index_k_output_values[30]
+        int index_k_output_values[100]
         char scalar_titles[8000]
         char vector_titles[8000]
         char tensor_titles[8000]
@@ -337,6 +337,7 @@ cdef extern from "class.h":
         int has_te
         int has_ee
         int has_bb
+        int has_tb
         int has_pp
         int has_tp
         int has_dd
@@ -356,6 +357,7 @@ cdef extern from "class.h":
         int index_ct_te
         int index_ct_ee
         int index_ct_bb
+        int index_ct_tb
         int index_ct_pp
         int index_ct_tp
         int index_ct_dd

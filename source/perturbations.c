@@ -3394,9 +3394,9 @@ int perturbations_prepare_k_output(struct background * pba,
       /** BEGIN @felixmorland: { */
       class_store_columntitle(ppt->vector_titles,"theta_cdm",pba->has_cdm);
       class_store_columntitle(ppt->vector_titles,"theta_fld",pba->has_fld);
-      class_store_columntitle(ppt->vector_titles,"Pi_fld",pba->has_fld && (pba->alpha_dmde > 0.));
-      class_store_columntitle(ppt->vector_titles,"Gamma_over_k",pba->has_fld && (pba->alpha_dmde > 0.));
-      class_store_columntitle(ppt->vector_titles,"Gamma_over_H",pba->has_fld && (pba->alpha_dmde > 0.));
+      class_store_columntitle(ppt->vector_titles,"Pi_fld",pba->has_fld && (pba->alpha_dmde >= 0.));
+      class_store_columntitle(ppt->vector_titles,"Gamma_over_k",pba->has_fld && (pba->alpha_dmde >= 0.));
+      class_store_columntitle(ppt->vector_titles,"Gamma_over_H",pba->has_fld && (pba->alpha_dmde >= 0.));
       /** } END @felixmorland */
       switch (ppt->hierarchy) {
       case optimal:
@@ -4188,7 +4188,7 @@ int perturbations_vector_init(
     class_define_index(ppv->index_pt_theta_fld, pba->has_fld, index_pt, 1);
 
     /* dark energy anisotropic stress: Pi_{de}^{(1)} */
-    class_define_index(ppv->index_pt_Pi_fld, pba->has_fld && (pba->alpha_dmde > 0.), index_pt, 1);
+    class_define_index(ppv->index_pt_Pi_fld, pba->has_fld && (pba->alpha_dmde >= 0.), index_pt, 1);
     /** } END */
 
     /* eventually reject inconsistent values of the number of mutipoles in photon temperature hierarchy and polarization*/
@@ -5536,13 +5536,14 @@ int perturbations_vector_init(
         ppv->y[ppv->index_pt_theta_cdm] =
           ppw->pv->y[ppw->pv->index_pt_theta_cdm];
 
-      if (pba->has_fld == _TRUE_)
+      if (pba->has_fld == _TRUE_) {
         ppv->y[ppv->index_pt_theta_fld] =
           ppw->pv->y[ppw->pv->index_pt_theta_fld];
         
-        if (pba->alpha_dmde > 0.)
+        if (pba->alpha_dmde >= 0.)
           ppv->y[ppv->index_pt_Pi_fld] =
             ppw->pv->y[ppw->pv->index_pt_Pi_fld];
+      }
       /** } END */
 
       /* -- case of switching off tight coupling
@@ -6452,7 +6453,7 @@ int perturbations_initial_conditions(struct precision * ppr,
       ppw->pv->y[ppw->pv->index_pt_theta_cdm] = 0.;
     if (pba->has_fld == _TRUE_) {
       ppw->pv->y[ppw->pv->index_pt_theta_fld] = 0.;
-      if (pba->alpha_dmde > 0.)
+      if (pba->alpha_dmde >= 0.)
         ppw->pv->y[ppw->pv->index_pt_Pi_fld] = 0.;
     }
     /** } END @felixmorland */
@@ -8067,7 +8068,7 @@ int perturbations_total_stress_energy(
     }
 
     /** BEGIN @felixmorland: { */
-    if (pba->has_fld == _TRUE_ && pba->alpha_dmde > 0.) {
+    if (pba->has_fld == _TRUE_ && pba->alpha_dmde >= 0.) {
 
       double w_fld_vs, dw_da_vs, integral_fld_vs;
       class_call(background_w_fld(pba, a, &w_fld_vs, &dw_da_vs, &integral_fld_vs),
@@ -9819,7 +9820,7 @@ int perturbations_print_variables(double tau,
 
     if (pba->has_fld == _TRUE_) {
       theta_fld_out = y[ppw->pv->index_pt_theta_fld];
-      if (pba->alpha_dmde > 0.) {
+      if (pba->alpha_dmde >= 0.) {
         double w_o, dw_da_o, integral_o;
         class_call(background_w_fld(pba, pvecback[pba->index_bg_a], &w_o, &dw_da_o, &integral_o),
                   pba->error_message, ppt->error_message);
@@ -9856,9 +9857,9 @@ int perturbations_print_variables(double tau,
     /** BEGIN @felixmorland: { */
     class_store_double(dataptr, theta_cdm_out, pba->has_cdm, storeidx);
     class_store_double(dataptr, theta_fld_out, pba->has_fld, storeidx);
-    class_store_double(dataptr, Pi_fld_out,       pba->has_fld && (pba->alpha_dmde > 0.), storeidx);
-    class_store_double(dataptr, Gamma_over_k_out, pba->has_fld && (pba->alpha_dmde > 0.), storeidx);
-    class_store_double(dataptr, Gamma_over_H_out, pba->has_fld && (pba->alpha_dmde > 0.), storeidx);
+    class_store_double(dataptr, Pi_fld_out,       pba->has_fld && (pba->alpha_dmde >= 0.), storeidx);
+    class_store_double(dataptr, Gamma_over_k_out, pba->has_fld && (pba->alpha_dmde >= 0.), storeidx);
+    class_store_double(dataptr, Gamma_over_H_out, pba->has_fld && (pba->alpha_dmde >= 0.), storeidx);
     /** } END @felixmorland */
 
     switch (ppt->hierarchy) {
@@ -11184,8 +11185,9 @@ int perturbations_derivs(double tau,
     cb2 = pvecthermo[pth->index_th_cb2];
 
     /** BEGIN @felixmorland: { */
-    /* DM-DE coupling const*/
-    double alpha_coupling = pba->alpha_dmde;
+
+    double alpha_dmde = pba->alpha_dmde;  /* DM-DE coupling parameter*/
+    double beta_bde = pba->beta_bde;      /* B-DE coupling parameter*/
 
     /* - --> dark matter vector velocity */
     if (pba->has_cdm == _TRUE_) {
@@ -11197,7 +11199,7 @@ int perturbations_derivs(double tau,
         dy[pv->index_pt_theta_cdm] =
             pvecmetric[ppw->index_mt_V_prime]
           - a_prime_over_a * (y[pv->index_pt_theta_cdm] - y[ppw->pv->index_pt_V])
-          - a * alpha_coupling / rho_cdm_vec
+          - a * alpha_dmde / rho_cdm_vec
             * (y[pv->index_pt_theta_cdm] - theta_fld_for_coupling);
 
       }
@@ -11205,30 +11207,37 @@ int perturbations_derivs(double tau,
 
     /* - --> dark energy fluid vector velocity and anisotropic stress */
     if (pba->has_fld == _TRUE_) {
+
       double rho_fld_vec = pvecback[pba->index_bg_rho_fld];
       double theta_cdm_for_coupling = (pba->has_cdm == _TRUE_) ? y[pv->index_pt_theta_cdm] : 0.;
+      double theta_b_for_coupling = y[pv->index_pt_theta_b];
+
       double w_fld_v, dw_da_v, integral_fld_v;
       class_call(background_w_fld(pba, a, &w_fld_v, &dw_da_v, &integral_fld_v),
                 pba->error_message, ppt->error_message);
       double w_prime_fld_v = dw_da_v * a_prime_over_a * a;
+
       double uV_coef = a_prime_over_a * (1.-3.*w_fld_v) + w_prime_fld_v / (1.+w_fld_v);
-      double coup_de = a * alpha_coupling / (rho_fld_vec * (1.+w_fld_v));
+      double Gamma_de = a * alpha_dmde / (rho_fld_vec * (1.+w_fld_v));
+      double Gamma_db = a * beta_bde / (rho_fld_vec * (1.+w_fld_v));
       double Pi_fld_v = 0., aniso_coef = 0.;
 
       if (ppt->gauge == newtonian) {
 
-        if (alpha_coupling > 0.) {
-          double Pi_coef = 1.2 * (1.+w_fld_v) / w_fld_v * pba->cs2_fld * k;
+        if (alpha_dmde >= 0.) {
           aniso_coef = 0.5 * k * w_fld_v / (1.+w_fld_v) * ssqrt3*ssqrt3;
           Pi_fld_v = y[pv->index_pt_Pi_fld];
-          dy[pv->index_pt_Pi_fld] = Pi_coef*y[pv->index_pt_theta_fld] - coup_de*Pi_fld_v;
+          double v_de_coef = 1.2 * (1.+w_fld_v) / w_fld_v * pba->cs2_fld * k;
+        
+          dy[pv->index_pt_Pi_fld] = v_de_coef*y[pv->index_pt_theta_fld] - (Gamma_de + Gamma_db)*Pi_fld_v;
         }
 
         dy[pv->index_pt_theta_fld] =
             pvecmetric[ppw->index_mt_V_prime]
           - uV_coef * (y[pv->index_pt_theta_fld] - y[pv->index_pt_V])
           - aniso_coef * Pi_fld_v
-          - coup_de * (y[pv->index_pt_theta_fld] - theta_cdm_for_coupling);
+          - Gamma_de * (y[pv->index_pt_theta_fld] - theta_cdm_for_coupling)
+          - Gamma_db * (y[pv->index_pt_theta_fld] - theta_b_for_coupling);
       }
     }
     /** } END @felixmorland */
@@ -11480,7 +11489,20 @@ int perturbations_derivs(double tau,
           + pvecmetric[ppw->index_mt_V_prime]+(1.-3.*cb2)*a_prime_over_a*y[pv->index_pt_V];
       }
     }
-
+    /** BEGIN @felixmorland: baryon side of the B-DE drag { */
+    if ((pba->has_fld == _TRUE_) && (beta_bde > 0.) && (ppt->gauge == newtonian)) {
+      double Gamma_b = a * beta_bde / pvecback[pba->index_bg_rho_b];   /* rho_b Gamma_b = (1+w) rho_de Gamma_db = a beta */
+      if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) {
+        dy[pv->index_pt_theta_b] -= Gamma_b * (y[pv->index_pt_theta_b] - y[pv->index_pt_theta_fld]);
+      }
+      else {
+        class_test(Gamma_b > 1.e-3 * a_prime_over_a,
+                  ppt->error_message,
+                  "B-DE drag not negligible during TCA (Gamma_b/H = %e at a = %e): add it to the TCA fluid and slip equations",
+                  Gamma_b / a_prime_over_a, a);
+      }
+    }
+    /** } END @felixmorland */
 
     /* ur species */
     if (ppt->evolve_vector_ur == _TRUE_) {
